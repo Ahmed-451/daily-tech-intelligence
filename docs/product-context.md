@@ -1,6 +1,70 @@
 # Daily Tech Intelligence — Product Vision & Technical Plan
 
 > **Purpose:** Long-term project context for building a public, free-to-use AI-powered technical learning platform that helps users develop deep engineering intuition rather than merely consume technical content.
+>
+> **Status note (2026-09-17):** This document is the original long-term vision (sections 1–45).
+> An immediate **V0 pre-MVP scope** has since been layered on top — see **Section 0** below —
+> to validate the core loop before building the full V1 MVP. See `DECISIONS_LOG.md` for the
+> reasoning behind every deviation from the original plan, recorded as it happens.
+
+---
+
+# 0. V0 — Immediate Build Target (Pre-MVP)
+
+Before building the V1 MVP in Section 29, ship a lean V0 to validate that the interactive
+learning loop is actually compelling, with minimal infrastructure investment.
+
+**V0 includes:**
+
+- No authentication
+- No onboarding flow
+- No diagnostic assessment
+- A small hand-curated topic set (10–15 topics, stored as static JSON/hardcoded — not
+  DB-driven yet), covering a spread of the categories in Section 12
+- The daily mission loop end-to-end: Hook → Think → Learn → Under the Hood → Challenge →
+  AI Evaluation → Teach-back (Section 10), running through a real server-side AI mentor route
+- Progress = local-only state (streak count, topics completed) — browser storage, no backend
+  persistence
+
+**V0 excludes (deferred to V1+):** accounts, DB-backed profiles, diagnostic assessment,
+knowledge graph, spaced repetition, weekly/monthly reviews, rate limiting infrastructure.
+
+**Success criterion:** real users (5–10) voluntarily return and report the loop itself —
+being asked to think before being taught, then evaluated, then teaching it back — feels
+valuable. If that's not true in this minimal form, no amount of additional engineering
+(knowledge graph, spaced repetition, adaptive scoring) will fix it.
+
+Once validated, proceed to Section 29 (V1 — MVP) as originally scoped.
+
+---
+
+# 0.1 Architecture Decisions Layered on the Original Plan
+
+These decisions refine (but do not contradict) the tech stack in Section 33 and the
+architecture questions in Section 43. Full reasoning for each is in `DECISIONS_LOG.md`.
+
+- **AI provider abstraction:** use the **Vercel AI SDK** rather than hand-rolling the
+  `AIService` interface sketched in Section 16 — same goal (swappable providers, streaming,
+  backend-only calls), less custom code, native fit with Next.js/Vercel.
+- **Knowledge graph storage:** plain **Postgres adjacency tables**
+  (`topic_prerequisites`, `topic_relationships`) — no dedicated graph database. Revisit only
+  if query patterns genuinely outgrow recursive CTEs.
+- **Deterministic vs AI-driven split** (answers open question in Section 43 #10):
+  - Deterministic: topic selection algorithm, streak calculation, difficulty progression
+  - AI-driven: conversational explanation/personalization, evaluation of open-ended answers
+    and teach-back
+- **Content pipeline:** hand-write/heavily edit ~15–20 gold-standard topics first; use them
+  as few-shot templates for AI-assisted generation of the remaining library, rather than
+  free-form AI generation (directly addresses the risk named in Section 38).
+- **Rate limiting / caching:** deferred until V1+ when accounts exist; likely
+  **Upstash Redis** (serverless, Vercel-native) when it's needed.
+- **Freemium scaffolding:** add a `plan` (`free`/`pro`) field and a lightweight
+  `ai_usage`/`usage_events` table to the schema as soon as a database exists, with all
+  limits left unenforced until pricing is finalized. Proposed (not final) split:
+  - **Free:** daily mission, basic progress tracking, capped AI messages/day
+  - **Pro:** unlimited mentor conversation, "go deeper" drill-downs, Build Mode, weekly/
+    monthly reviews, multi-day deep-dive series, stronger model for evaluations
+  - **Open question:** exact free-tier daily AI-message cap — not yet decided.
 
 ---
 
@@ -184,6 +248,9 @@ Knowledge graph updated
   ↓
 Tomorrow's topic selected
 ```
+
+> **V0 note:** the flows above are the long-term (V1+) target. In V0 there is no landing
+> page funnel, account creation, or assessment — the user goes straight into a mission.
 
 ---
 
@@ -684,6 +751,10 @@ Therefore:
 
 > MVCC is a strong candidate for the next lesson.
 
+> **Architecture note:** implement this as Postgres adjacency tables
+> (`topic_prerequisites`, `topic_relationships`), not a dedicated graph database.
+> See `DECISIONS_LOG.md`.
+
 ---
 
 # 14. Progress Tracking
@@ -785,6 +856,11 @@ The backend controls:
 - Logging
 - Caching
 
+> **Architecture note:** implement this gateway using the **Vercel AI SDK** rather than a
+> fully custom `AIService` abstraction — it already provides multi-provider swapping,
+> streaming, and tool-calling hooks on top of the Next.js/Vercel stack. The conceptual
+> abstraction below still holds; the SDK is the implementation of it.
+
 Create an AI provider abstraction:
 
 ```text
@@ -860,6 +936,11 @@ The system selects the highest-value topic for that user.
 
 This is much better than random topic generation.
 
+> **V0/V1 note:** this 8-factor score is a V2/V3 target. For V0/V1, use a simple weighted
+> rotation (category coverage + basic knowledge gap) — most of the perceived benefit, a
+> fraction of the implementation cost. This is also where topic selection is deterministic,
+> not AI-driven — see Section 0.1.
+
 ---
 
 # 19. Build Mode
@@ -879,6 +960,8 @@ After learning:
 This moves the product from:
 
 **Education → Engineering capability**
+
+> **Freemium note:** Build Mode is a candidate Pro-tier feature. See Section 0.1.
 
 ---
 
@@ -988,6 +1071,8 @@ Include:
 7. Combined Challenge
 8. Next Week's Learning Direction
 
+> **Freemium note:** candidate Pro-tier feature. See Section 0.1.
+
 ---
 
 # 25. Monthly Engineer Level-Up
@@ -1013,6 +1098,8 @@ Output:
 
 Then create a targeted improvement path.
 
+> **Freemium note:** candidate Pro-tier feature. See Section 0.1.
+
 ---
 
 # 26. Multi-Day Deep Dives
@@ -1032,6 +1119,8 @@ Day 6 → Distributed transactions
 Day 7 → Design a distributed system
 
 Do not abandon a topic before important prerequisites are understood.
+
+> **Freemium note:** candidate Pro-tier feature. See Section 0.1.
 
 ---
 
@@ -1122,6 +1211,9 @@ Move to the next topic.
 # 29. MVP Scope
 
 Do not attempt to build everything initially.
+
+> **Note:** as of 2026-09-17, this V1 MVP is preceded by an even leaner **V0** (Section 0)
+> to validate the core loop first. Treat this section as the target *after* V0 validates.
 
 ## V1 — MVP
 
@@ -1269,6 +1361,12 @@ Start with:
 
 Avoid a dedicated vector database until scale requires it.
 
+## AI Provider Abstraction
+
+**Vercel AI SDK** (see Section 0.1 / `DECISIONS_LOG.md`) — provides multi-provider
+swapping, streaming, and tool-calling on top of the Next.js/Vercel stack, replacing the
+fully custom `AIService` originally sketched in Section 16.
+
 ## Background Jobs
 
 Potential choices:
@@ -1285,6 +1383,16 @@ Use them for:
 - Tech radar updates
 - Embedding generation
 - Content validation
+
+## Rate Limiting / Caching
+
+**Upstash Redis** — serverless, Vercel-native. Introduce at V1 (once accounts/AI usage
+exist), not needed for V0.
+
+## Billing (future)
+
+**Stripe** — once the freemium split is finalized (see Section 0.1). Schema fields for
+`plan` and usage tracking should exist before this is needed, per Section 0.1.
 
 ## Deployment
 
@@ -1360,6 +1468,10 @@ streaks
 resources
 ai_conversations
 ai_messages
+
+-- Added 2026-09-17 for freemium scaffolding (see Section 0.1 / DECISIONS_LOG.md):
+-- users.plan            ('free' | 'pro')
+-- ai_usage / usage_events
 ```
 
 Important relationship:
@@ -1438,6 +1550,8 @@ Potential future premium features:
 - Advanced analytics
 - Higher usage limits
 
+> See Section 0.1 for the current (still open) proposed free/paid split.
+
 ---
 
 # 37. PWA / Mobile Strategy
@@ -1492,6 +1606,10 @@ Eventually support:
 - Source/reference tracking
 - User feedback
 - Error reporting
+
+> **Pipeline decision (2026-09-17):** hand-write/heavily edit ~15–20 gold-standard topics
+> first; use them as few-shot templates for AI-assisted generation of the rest. See
+> `DECISIONS_LOG.md`.
 
 ---
 
@@ -1627,7 +1745,10 @@ That is the product.
 
 # 42. Development Roadmap
 
-## Phase 0 — Product Definition
+> **Note:** Phase 0 below now includes the V0 loop-validation step (Section 0) before
+> Phase 1 infrastructure work begins.
+
+## Phase 0 — Product Definition (+ V0 validation)
 
 Before coding:
 
@@ -1638,6 +1759,7 @@ Before coding:
 - User journeys
 - Information architecture
 - Design direction
+- **Build and test V0 (Section 0) with real users**
 
 ## Phase 1 — Foundation
 
@@ -1722,7 +1844,7 @@ These should be resolved during the technical/product specification phase:
 7. How much content should be human-curated vs AI-generated?
 8. What is the minimum daily experience that creates genuine learning?
 9. What data should be stored about user reasoning and performance?
-10. What should be deterministic vs AI-driven?
+10. What should be deterministic vs AI-driven? — **Answered 2026-09-17, see Section 0.1**
 11. How should the knowledge graph evolve?
 12. How do we prevent the system from repeatedly teaching concepts the user already understands?
 13. How should emerging technology information be sourced and validated?
@@ -1732,6 +1854,10 @@ These should be resolved during the technical/product specification phase:
 ---
 
 # 44. Recommended Immediate Next Step
+
+> **Superseded in part by Section 0 (2026-09-17):** build and validate V0 first. The
+> detailed spec below is still the right next step once V0 confirms the loop works, or can
+> be drafted in parallel for the parts (schema, API shape) V0 also needs.
 
 Do **not** start by building the landing page.
 
