@@ -5,6 +5,52 @@
 
 ---
 
+## 2026-09-17 — Four more gold-standard topics + library index
+
+**Decision:** Wrote four additional gold-standard topics, each matching the depth/structure
+of the WAL exemplar, spanning categories that weren't yet represented:
+
+- `networking-tcp-congestion-control` — "Why TCP Deliberately Slows Itself Down" (networking)
+- `distributed-cap-theorem` — "CAP Theorem: The Trade-off You Can't Engineer Away" (distributed-systems)
+- `genai-kv-cache` — "The KV Cache: Why LLMs Don't Re-Read Everything Every Token" (generative-ai)
+- `systems-virtual-memory` — "Virtual Memory: The Lie Every Program Believes" (computer-systems)
+
+Also added `src/content/index.ts`: the static `topicLibrary` array plus `getTopicById` and
+`getTopicForDay` (a simple deterministic rotation — index modulo library length).
+
+**Reasoning:** V0 needs more than one topic to feel like a rotating curriculum rather than
+a demo of a single lesson, and needs topics across different categories to prove the schema
+generalizes beyond databases. `getTopicForDay`'s simple rotation is the deliberately minimal
+V0 stand-in for the full `NextTopicScore` engine in §18 — deterministic, not AI-driven, per
+the "Deterministic vs AI-driven split" decision below.
+
+**Status:** Approved. `remainingGoldStandardTopics` = ~10–15 to reach the 15–20 target.
+Categories still uncovered: cs-fundamentals, software-engineering, cloud-infrastructure,
+cybersecurity, developer-technologies, emerging-technology.
+
+---
+
+## 2026-09-17 — Topic schema finalized + first gold-standard topic written
+
+**Decision:** Implemented the `Topic` TypeScript type (`src/types/topic.ts`) as the concrete
+data contract for a lesson, combining the Topic object sketched in `product-context.md` §17
+with the full Daily Topic Structure in §11 and the Difficulty System in §23. Wrote the first
+gold-standard topic, **"Why Databases Use Write-Ahead Logs"**
+(`src/content/topics/database-wal.ts`), fully fleshed out across every stage (hook, think,
+simple/deep explanation, under-the-hood, real-world examples, code example, trade-offs,
+what-happens-if, connect-the-dots, engineer's insight, surprising fact, teach-back, mini
+challenge, active recall, design challenge).
+
+**Reasoning:** This is exemplar #1 of the ~15–20 hand-written gold-standard topics called
+for in the "Content pipeline" decision below. It exists to (a) prove the schema is rich
+enough to support the full interactive loop end-to-end, and (b) be the few-shot template
+for every subsequent topic — hand-written or AI-assisted.
+
+**Status:** Approved. `remainingGoldStandardTopics` = ~14–19, still to be written, spread
+across the core categories in §12.
+
+---
+
 ## 2026-09-17 — V0 lean scope adopted (pre-MVP)
 
 **Decision:** Before building the full V1 MVP described in `product-context.md` (auth, onboarding,
